@@ -1,61 +1,49 @@
-import type { Env, ExtractedSubscription } from './types'
+import type { BillingCycle, Category, Env, ExtractedSubscription } from './types'
 import { BILLING_CYCLES, CATEGORIES } from './types'
 
-const MODEL = 'claude-haiku-4-5-20251001'
+const MODEL = '@cf/llava-hf/llava-1.5-7b-hf'
 
-// Forces structured output via tool-use instead of parsing free text, so a screenshot
-// always comes back as the exact shape the "new subscription" form expects.
-export async function extractSubscriptionFromImage(env: Env, imageBase64: string, mediaType: string): Promise<ExtractedSubscription> {
-  if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set')
+const PROMPT =
+  'This is a screenshot of a payment, receipt, or subscription charge. Reply with ONLY a JSON object, ' +
+  'no other text, in this exact shape: {"name": string, "amount": number, "currency": string (ISO code ' +
+  'like CZK/USD/EUR), "billingCycle": "monthly"|"yearly"|"weekly", "category": "streaming"|"software"|' +
+  '"fitness"|"hosting_domains"|"other", "chargeDate": "YYYY-MM-DD" or null}. Guess billingCycle ' +
+  '("monthly" if unsure) and category ("other" if unsure) rather than omitting them.'
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 512,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-            {
-              type: 'text',
-              text: 'This is a screenshot of a payment, receipt, or subscription charge. Extract the subscription details and call record_subscription. Name and amount must reflect what is actually visible; for billingCycle and category, make your best guess (monthly / other) when not visible rather than leaving them out.',
-            },
-          ],
-        },
-      ],
-      tools: [
-        {
-          name: 'record_subscription',
-          description: 'Record the subscription details extracted from the screenshot',
-          input_schema: {
-            type: 'object',
-            properties: {
-              name: { type: 'string', description: 'Service or merchant name, e.g. Netflix' },
-              amount: { type: 'number', description: 'Charge amount as a plain number, no currency symbol' },
-              currency: { type: 'string', description: 'ISO 4217 currency code, e.g. CZK, USD, EUR' },
-              billingCycle: { type: 'string', enum: BILLING_CYCLES },
-              category: { type: 'string', enum: CATEGORIES },
-              chargeDate: { type: ['string', 'null'], description: 'ISO date (YYYY-MM-DD) of the charge shown, if visible, else null' },
-            },
-            required: ['name', 'amount', 'currency', 'billingCycle', 'category', 'chargeDate'],
-          },
-        },
-      ],
-      tool_choice: { type: 'tool', name: 'record_subscription' },
-    }),
-  })
+// Free (Cloudflare Workers AI, within the daily neuron allowance) but a much smaller/older
+// vision model than a frontier LLM — expect it to misread amounts/dates more often, which is
+// why this only ever pre-fills the form for the user to check, never saves directly.
+export async function extractSubscriptionFromImage(env: Env, imageBase64: string): Promise<ExtractedSubscription> {
+  const bytes = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0))
+  const result = (await env.AI.run(MODEL, { image: [...bytes], prompt: PROMPT, max_tokens: 512 })) as {
+    description?: string
+    response?: string
+  }
 
-  if (!res.ok) throw new Error(`Anthropic API request failed: ${res.status} ${await res.text().catch(() => '')}`)
+  const text = result.description ?? result.response ?? ''
+  const match = text.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('Could not read that screenshot clearly — try a clearer image or add it manually')
 
-  const data = (await res.json()) as { content: Array<{ type: string; input?: ExtractedSubscription }> }
-  const toolUse = data.content.find((block) => block.type === 'tool_use')
-  if (!toolUse?.input) throw new Error('Model did not return structured subscription data')
-  return toolUse.input
+  let parsed: Record<string, unknown>
+  try {
+    parsed = JSON.parse(match[0])
+  } catch {
+    throw new Error('Could not read that screenshot clearly — try a clearer image or add it manually')
+  }
+
+  const name = typeof parsed.name === 'string' ? parsed.name.trim() : ''
+  const amount = Number(parsed.amount)
+  if (!name || !Number.isFinite(amount)) {
+    throw new Error('Could not make out the name or amount in that screenshot — try a clearer image or add it manually')
+  }
+
+  return {
+    name,
+    amount,
+    currency: typeof parsed.currency === 'string' && parsed.currency.trim() ? parsed.currency.trim().toUpperCase() : 'CZK',
+    billingCycle: BILLING_CYCLES.includes(parsed.billingCycle as BillingCycle) ? (parsed.billingCycle as BillingCycle) : 'monthly',
+    category: CATEGORIES.includes(parsed.category as Category) ? (parsed.category as Category) : 'other',
+    chargeDate:
+      typeof parsed.chargeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.chargeDate) ? parsed.chargeDate : null,
+  }
 }

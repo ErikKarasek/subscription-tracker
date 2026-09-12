@@ -52,7 +52,7 @@ export interface ExtractedSubscription {
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
+  AI: Ai
   RESEND_API_KEY?: string
   REMINDER_TO_EMAIL?: string
-  ANTHROPIC_API_KEY?: string
 }

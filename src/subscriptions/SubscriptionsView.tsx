@@ -28,10 +28,10 @@ export function SubscriptionsView() {
     setImporting(true)
     try {
       const dataUrl = await readAsDataUrl(file)
-      const [, mediaType, base64] = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl) ?? []
+      const [, base64] = /^data:[^;]+;base64,(.*)$/s.exec(dataUrl) ?? []
       if (!base64) throw new Error('Could not read that image')
 
-      const extracted: ExtractedSubscription = await api.extractFromImage(base64, mediaType)
+      const extracted: ExtractedSubscription = await api.extractFromImage(base64)
       setPrefill({
         name: extracted.name,
         category: extracted.category,
