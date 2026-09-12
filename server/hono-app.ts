@@ -11,6 +11,7 @@ import {
   markUsed,
   updateSubscription,
 } from './db'
+import { extractSubscriptionFromImage } from './extract'
 
 export const app = new Hono<{ Bindings: Env }>()
 
@@ -52,6 +53,16 @@ app.post('/api/subscriptions/:id/mark-used', async (c) => {
   const updated = await markUsed(c.env.DB, c.req.param('id'))
   if (!updated) return c.json({ error: 'not found' }, 404)
   return c.json(updated)
+})
+
+app.post('/api/extract-subscription', async (c) => {
+  const body = await c.req.json<{ imageBase64: string; mediaType: string }>()
+  if (!body.imageBase64 || !body.mediaType) return c.json({ error: 'imageBase64 and mediaType are required' }, 400)
+  try {
+    return c.json(await extractSubscriptionFromImage(c.env, body.imageBase64, body.mediaType))
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : 'extraction failed' }, 502)
+  }
 })
 
 app.get('/api/stats/summary', async (c) => c.json(await getStatsSummary(c.env.DB)))

@@ -1,4 +1,4 @@
-import type { Category } from '../types'
+import type { BillingCycle, Category } from '../types'
 
 export function formatMoney(amount: number, currency: string): string {
   return `${Math.round(amount * 100) / 100} ${currency}`
@@ -15,6 +15,16 @@ export function daysUntil(iso: string): number {
 
 export function daysSince(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24))
+}
+
+// Receipts show the charge that already happened, not the next one — so a screenshot
+// import suggests the next renewal by stepping the charge date forward one cycle.
+export function nextRenewalAfter(chargeDateIso: string, cycle: BillingCycle): string {
+  const d = new Date(chargeDateIso)
+  if (cycle === 'yearly') d.setUTCFullYear(d.getUTCFullYear() + 1)
+  else if (cycle === 'weekly') d.setUTCDate(d.getUTCDate() + 7)
+  else d.setUTCMonth(d.getUTCMonth() + 1)
+  return d.toISOString()
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {

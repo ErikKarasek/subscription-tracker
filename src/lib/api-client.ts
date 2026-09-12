@@ -1,4 +1,4 @@
-import type { Category, StatsSummary, Subscription, SubscriptionInput } from '../types'
+import type { Category, ExtractedSubscription, StatsSummary, Subscription, SubscriptionInput } from '../types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -25,4 +25,6 @@ export const api = {
   statsSummary: () => request<StatsSummary>('/stats/summary'),
   upcoming: (days = 7) => request<Subscription[]>(`/subscriptions/upcoming?days=${days}`),
   unused: (days = 30) => request<Subscription[]>(`/subscriptions/unused?days=${days}`),
+  extractFromImage: (imageBase64: string, mediaType: string) =>
+    request<ExtractedSubscription>('/extract-subscription', { method: 'POST', body: JSON.stringify({ imageBase64, mediaType }) }),
 }

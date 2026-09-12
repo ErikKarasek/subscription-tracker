@@ -6,12 +6,14 @@ import { CATEGORY_LABELS } from '../lib/format'
 interface SubscriptionEditorModalProps {
   // null = closed. 'new' = create mode. A Subscription = edit mode.
   target: Subscription | 'new' | null
+  // Suggested field values for create mode, e.g. from a screenshot import — user still reviews before saving.
+  prefill?: Partial<SubscriptionInput> | null
   onClose: () => void
   onSave: (input: SubscriptionInput, editingId: string | null) => void
   onDelete: (id: string) => void
 }
 
-export function SubscriptionEditorModal({ target, onClose, onSave, onDelete }: SubscriptionEditorModalProps) {
+export function SubscriptionEditorModal({ target, prefill, onClose, onSave, onDelete }: SubscriptionEditorModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const isEditing = target !== null && target !== 'new'
 
@@ -47,7 +49,11 @@ export function SubscriptionEditorModal({ target, onClose, onSave, onDelete }: S
     onClose()
   }
 
-  const defaultDate = isEditing ? target.nextRenewalDate.slice(0, 10) : new Date().toISOString().slice(0, 10)
+  const defaultDate = isEditing
+    ? target.nextRenewalDate.slice(0, 10)
+    : (prefill?.nextRenewalDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10))
+  // Re-mount the form (fresh defaultValues) whenever we switch what we're prefilling from.
+  const formKey = isEditing ? target.id : prefill ? JSON.stringify(prefill) : 'new-blank'
 
   return (
     <dialog
@@ -57,19 +63,19 @@ export function SubscriptionEditorModal({ target, onClose, onSave, onDelete }: S
       aria-labelledby="subscription-editor-title"
       className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-line bg-surface p-0 text-ink backdrop:bg-black/60"
     >
-      <form method="dialog" onSubmit={handleSubmit} className="flex flex-col gap-3 p-5">
+      <form key={formKey} method="dialog" onSubmit={handleSubmit} className="flex flex-col gap-3 p-5">
         <h2 id="subscription-editor-title" className="font-semibold text-lg">
           {isEditing ? 'Edit subscription' : 'New subscription'}
         </h2>
 
-        <Field label="Name" name="name" defaultValue={isEditing ? target.name : ''} required />
+        <Field label="Name" name="name" defaultValue={isEditing ? target.name : (prefill?.name ?? '')} required />
 
         <div className="flex gap-3">
           <label className="flex flex-1 flex-col gap-1 text-sm text-ink-2">
             Category
             <select
               name="category"
-              defaultValue={isEditing ? target.category : CATEGORIES[0]}
+              defaultValue={isEditing ? target.category : (prefill?.category ?? CATEGORIES[0])}
               className="rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
             >
               {CATEGORIES.map((c) => (
@@ -83,7 +89,7 @@ export function SubscriptionEditorModal({ target, onClose, onSave, onDelete }: S
             Billing cycle
             <select
               name="billingCycle"
-              defaultValue={isEditing ? target.billingCycle : 'monthly'}
+              defaultValue={isEditing ? target.billingCycle : (prefill?.billingCycle ?? 'monthly')}
               className="rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
             >
               {BILLING_CYCLES.map((cy) => (
@@ -96,8 +102,15 @@ export function SubscriptionEditorModal({ target, onClose, onSave, onDelete }: S
         </div>
 
         <div className="flex gap-3">
-          <Field label="Amount" name="amount" type="number" defaultValue={isEditing ? target.amount : ''} className="flex-1" required />
-          <Field label="Currency" name="currency" defaultValue={isEditing ? target.currency : 'CZK'} className="flex-1" />
+          <Field
+            label="Amount"
+            name="amount"
+            type="number"
+            defaultValue={isEditing ? target.amount : (prefill?.amount ?? '')}
+            className="flex-1"
+            required
+          />
+          <Field label="Currency" name="currency" defaultValue={isEditing ? target.currency : (prefill?.currency ?? 'CZK')} className="flex-1" />
         </div>
 
         <Field label="Next renewal date" name="nextRenewalDate" type="date" defaultValue={defaultDate} required />
@@ -112,6 +125,10 @@ export function SubscriptionEditorModal({ target, onClose, onSave, onDelete }: S
             className="rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
           />
         </label>
+
+        {!isEditing && prefill && (
+          <p className="text-xs text-mute">Pre-filled from your screenshot — double-check before saving.</p>
+        )}
 
         <div className="mt-2 flex items-center justify-between gap-2">
           {isEditing ? (
