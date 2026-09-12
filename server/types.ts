@@ -40,9 +40,19 @@ export interface StatsSummary {
   byCategory: Array<{ category: Category; monthly: number }>
 }
 
+export interface ExtractedSubscription {
+  name: string
+  amount: number
+  currency: string
+  billingCycle: BillingCycle
+  category: Category
+  chargeDate: string | null
+}
+
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
   RESEND_API_KEY?: string
   REMINDER_TO_EMAIL?: string
+  ANTHROPIC_API_KEY?: string
 }

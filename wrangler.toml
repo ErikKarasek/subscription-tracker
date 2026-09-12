@@ -14,7 +14,7 @@ database_id = "fb541d14-ef20-40ad-bbf1-57ff7adad89e"
 
 [vars]
 # Where renewal/unused-subscription reminder emails go. Change to your own address.
-REMINDER_TO_EMAIL = "you@example.com"
+REMINDER_TO_EMAIL = "erikkarasek@centrum.cz"
 
 # Daily 07:00 UTC: advance renewals, send reminder emails via Resend (RESEND_API_KEY secret).
 [triggers]
