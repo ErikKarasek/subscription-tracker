@@ -25,6 +25,6 @@ export const api = {
   statsSummary: () => request<StatsSummary>('/stats/summary'),
   upcoming: (days = 7) => request<Subscription[]>(`/subscriptions/upcoming?days=${days}`),
   unused: (days = 30) => request<Subscription[]>(`/subscriptions/unused?days=${days}`),
-  extractFromImage: (imageBase64: string, mediaType: string) =>
-    request<ExtractedSubscription>('/extract-subscription', { method: 'POST', body: JSON.stringify({ imageBase64, mediaType }) }),
+  extractFromImage: (imageBase64: string) =>
+    request<ExtractedSubscription>('/extract-subscription', { method: 'POST', body: JSON.stringify({ imageBase64 }) }),
 }
