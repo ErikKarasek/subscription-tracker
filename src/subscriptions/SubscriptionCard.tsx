@@ -42,13 +42,22 @@ export function SubscriptionCard({
         <span className="text-xs text-mute">
           {subscription.lastUsedAt ? `Used ${daysSince(subscription.lastUsedAt)}d ago` : 'Never marked used'}
         </span>
-        <button
-          type="button"
-          onClick={onMarkUsed}
-          className="rounded-md border border-line px-2 py-1 text-xs text-ink-2 hover:border-signal hover:text-signal"
-        >
-          Mark used
-        </button>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-md border border-line px-2 py-1 text-xs text-ink-2 hover:border-signal hover:text-signal"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={onMarkUsed}
+            className="rounded-md border border-line px-2 py-1 text-xs text-ink-2 hover:border-signal hover:text-signal"
+          >
+            Mark used
+          </button>
+        </div>
       </div>
     </div>
   )
