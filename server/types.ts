@@ -40,6 +40,11 @@ export interface StatsSummary {
   byCategory: Array<{ category: Category; monthly: number }>
 }
 
+export interface SpendHistoryPoint {
+  month: string
+  total: number
+}
+
 export interface ExtractedSubscription {
   name: string
   amount: number

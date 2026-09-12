@@ -96,7 +96,13 @@ export function SubscriptionsView() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((s) => (
-            <SubscriptionCard key={s.id} subscription={s} onEdit={() => setEditorTarget(s)} onMarkUsed={() => markUsed(s.id)} />
+            <SubscriptionCard
+              key={s.id}
+              subscription={s}
+              onEdit={() => setEditorTarget(s)}
+              onMarkUsed={() => markUsed(s.id)}
+              onToggleActive={() => updateSubscription(s.id, { isActive: !s.isActive })}
+            />
           ))}
         </div>
       )}

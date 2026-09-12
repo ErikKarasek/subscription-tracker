@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react'
-import type { StatsSummary, Subscription } from '../types'
+import type { SpendHistoryPoint, StatsSummary, Subscription } from '../types'
 import { api } from '../lib/api-client'
 import { StatTile } from './StatTile'
 import { CategoryBarChart } from './CategoryBarChart'
+import { SpendHistoryChart } from './SpendHistoryChart'
 import { daysSince, daysUntil, formatDate, formatMoney } from '../lib/format'
 
 export function OverviewDashboard() {
   const [summary, setSummary] = useState<StatsSummary | null>(null)
   const [upcoming, setUpcoming] = useState<Subscription[]>([])
   const [unused, setUnused] = useState<Subscription[]>([])
+  const [history, setHistory] = useState<SpendHistoryPoint[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([api.statsSummary(), api.upcoming(7), api.unused(30)])
-      .then(([s, u, un]) => {
+    Promise.all([api.statsSummary(), api.upcoming(7), api.unused(30), api.spendHistory(12)])
+      .then(([s, u, un, h]) => {
         setSummary(s)
         setUpcoming(u)
         setUnused(un)
+        setHistory(h)
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load overview'))
   }, [])
@@ -36,6 +39,14 @@ export function OverviewDashboard() {
 
       <section className="rounded-lg border border-line-soft bg-surface p-4">
         <CategoryBarChart byCategory={summary.byCategory} />
+      </section>
+
+      <section className="rounded-lg border border-line-soft bg-surface p-4 overflow-x-auto">
+        {history.length > 0 ? (
+          <SpendHistoryChart points={history} />
+        ) : (
+          <p className="text-sm text-mute">No renewal history yet — check back after your first subscriptions renew.</p>
+        )}
       </section>
 
       {upcoming.length > 0 && (

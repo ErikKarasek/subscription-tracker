@@ -4,6 +4,7 @@ import { BILLING_CYCLES, CATEGORIES } from './types'
 import {
   createSubscription,
   deleteSubscription,
+  getSpendHistory,
   getStatsSummary,
   getUnusedSubscriptions,
   getUpcomingRenewals,
@@ -66,6 +67,11 @@ app.post('/api/extract-subscription', async (c) => {
 })
 
 app.get('/api/stats/summary', async (c) => c.json(await getStatsSummary(c.env.DB)))
+
+app.get('/api/stats/history', async (c) => {
+  const months = Number(c.req.query('months') ?? 12)
+  return c.json(await getSpendHistory(c.env.DB, Number.isFinite(months) ? months : 12))
+})
 
 app.get('/api/subscriptions/upcoming', async (c) => {
   const days = Number(c.req.query('days') ?? 7)
