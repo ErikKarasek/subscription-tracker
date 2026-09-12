@@ -237,3 +237,21 @@ export async function advanceDueRenewals(db: D1Database): Promise<Subscription[]
 export async function markReminderSent(db: D1Database, id: string, forDate: string): Promise<void> {
   await db.prepare('UPDATE subscriptions SET last_reminder_sent_for = ? WHERE id = ?').bind(forDate, id).run()
 }
+
+// Actual money spent per month, from the renewal_events log — distinct from stats/summary's
+// projected monthly total, this only counts charges that have actually happened.
+export async function getSpendHistory(db: D1Database, months: number): Promise<Array<{ month: string; total: number }>> {
+  const { results } = await db
+    .prepare(
+      `SELECT month, total FROM (
+         SELECT strftime('%Y-%m', renewed_at) as month, SUM(amount) as total
+         FROM renewal_events
+         GROUP BY month
+         ORDER BY month DESC
+         LIMIT ?
+       ) ORDER BY month ASC`,
+    )
+    .bind(months)
+    .all<{ month: string; total: number }>()
+  return results.map((r) => ({ month: r.month, total: round2(r.total) }))
+}
