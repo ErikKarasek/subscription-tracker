@@ -135,6 +135,7 @@ export function SubscriptionEditorModal({ target, prefill, onClose, onSave, onDe
             <button
               type="button"
               onClick={() => {
+                if (!window.confirm(`Delete "${target.name}"? This can't be undone.`)) return
                 onDelete(target.id)
                 onClose()
               }}
