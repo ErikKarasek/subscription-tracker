@@ -1,0 +1,47 @@
+@import "tailwindcss";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/jetbrains-mono";
+
+/* Same command-center palette family as job-tracker: near-black surfaces, one warm
+   signal accent for what needs attention. Data figures render in mono. */
+@theme {
+  --font-sans: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --color-bg: #0a0c11;
+  --color-surface: #12151c;
+  --color-surface-2: #171b24;
+  --color-line: #262b36;
+  --color-line-soft: #1b1f29;
+
+  --color-ink: #e8eaf0;
+  --color-ink-2: #b7bdcc;
+  --color-mute: #7d8496;
+
+  --color-signal: #f0a537;
+  --color-signal-ink: #1a1204;
+
+  /* Validated via dataviz skill's validate_palette.js against this dark surface
+     (#171b24), drawn from the skill's reference 8-hue dark theme (blue/aqua/yellow/
+     violet/red slots 1,3,4,7,8) to keep the whole palette family CVD-safe. Category
+     identity is never color-only — every category always ships a text label too. */
+  --color-cat-streaming: #e66767;
+  --color-cat-software: #3987e5;
+  --color-cat-fitness: #199e70;
+  --color-cat-hosting_domains: #9085e9;
+  --color-cat-other: #c98500;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
