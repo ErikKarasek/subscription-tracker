@@ -39,6 +39,7 @@ app.patch('/api/subscriptions/:id', async (c) => {
   const patch = await c.req.json<Partial<SubscriptionInput>>()
   if (patch.category && !CATEGORIES.includes(patch.category)) return c.json({ error: 'invalid category' }, 400)
   if (patch.billingCycle && !BILLING_CYCLES.includes(patch.billingCycle)) return c.json({ error: 'invalid billingCycle' }, 400)
+  if (patch.amount !== undefined && !(patch.amount > 0)) return c.json({ error: 'amount must be positive' }, 400)
   const updated = await updateSubscription(c.env.DB, c.req.param('id'), patch)
   if (!updated) return c.json({ error: 'not found' }, 404)
   return c.json(updated)
