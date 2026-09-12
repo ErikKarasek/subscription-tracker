@@ -1,5 +1,6 @@
 import type { BillingCycle, Category, StatsSummary, Subscription, SubscriptionInput } from './types'
 import { CATEGORIES } from './types'
+import { convertAllToCZK } from './fx'
 
 interface SubscriptionRow {
   id: string
@@ -151,16 +152,20 @@ export async function markUsed(db: D1Database, id: string): Promise<Subscription
 
 export async function getStatsSummary(db: D1Database): Promise<StatsSummary> {
   const { results } = await db
-    .prepare('SELECT category, amount, billing_cycle FROM subscriptions WHERE is_active = 1')
-    .all<{ category: Category; amount: number; billing_cycle: BillingCycle }>()
+    .prepare('SELECT category, amount, currency, billing_cycle FROM subscriptions WHERE is_active = 1')
+    .all<{ category: Category; amount: number; currency: string; billing_cycle: BillingCycle }>()
+
+  // Amounts are stored in whatever currency they were entered in — convert to CZK
+  // before summing, otherwise "20 USD" + "269 CZK" silently adds to 289.
+  const czkAmounts = await convertAllToCZK(results)
 
   const byCategoryMap = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>
   let monthlyTotal = 0
-  for (const row of results) {
-    const monthly = toMonthly(row.amount, row.billing_cycle)
+  results.forEach((row, i) => {
+    const monthly = toMonthly(czkAmounts[i], row.billing_cycle)
     monthlyTotal += monthly
     byCategoryMap[row.category] += monthly
-  }
+  })
 
   return {
     monthlyTotal: round2(monthlyTotal),
@@ -240,18 +245,19 @@ export async function markReminderSent(db: D1Database, id: string, forDate: stri
 
 // Actual money spent per month, from the renewal_events log — distinct from stats/summary's
 // projected monthly total, this only counts charges that have actually happened.
+// Aggregated in JS rather than SQL because each row needs currency conversion first.
 export async function getSpendHistory(db: D1Database, months: number): Promise<Array<{ month: string; total: number }>> {
   const { results } = await db
-    .prepare(
-      `SELECT month, total FROM (
-         SELECT strftime('%Y-%m', renewed_at) as month, SUM(amount) as total
-         FROM renewal_events
-         GROUP BY month
-         ORDER BY month DESC
-         LIMIT ?
-       ) ORDER BY month ASC`,
-    )
-    .bind(months)
-    .all<{ month: string; total: number }>()
-  return results.map((r) => ({ month: r.month, total: round2(r.total) }))
+    .prepare(`SELECT strftime('%Y-%m', renewed_at) as month, amount, currency FROM renewal_events ORDER BY renewed_at ASC`)
+    .all<{ month: string; amount: number; currency: string }>()
+
+  const czkAmounts = await convertAllToCZK(results)
+
+  const totals = new Map<string, number>()
+  results.forEach((row, i) => totals.set(row.month, (totals.get(row.month) ?? 0) + czkAmounts[i]))
+
+  return [...totals.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .slice(-months)
+    .map(([month, total]) => ({ month, total: round2(total) }))
 }
