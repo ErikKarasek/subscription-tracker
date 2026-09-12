@@ -157,7 +157,7 @@ export async function getStatsSummary(db: D1Database): Promise<StatsSummary> {
 
   // Amounts are stored in whatever currency they were entered in — convert to CZK
   // before summing, otherwise "20 USD" + "269 CZK" silently adds to 289.
-  const czkAmounts = await convertAllToCZK(results)
+  const czkAmounts = await convertAllToCZK(db, results)
 
   const byCategoryMap = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>
   let monthlyTotal = 0
@@ -251,7 +251,7 @@ export async function getSpendHistory(db: D1Database, months: number): Promise<A
     .prepare(`SELECT strftime('%Y-%m', renewed_at) as month, amount, currency FROM renewal_events ORDER BY renewed_at ASC`)
     .all<{ month: string; amount: number; currency: string }>()
 
-  const czkAmounts = await convertAllToCZK(results)
+  const czkAmounts = await convertAllToCZK(db, results)
 
   const totals = new Map<string, number>()
   results.forEach((row, i) => totals.set(row.month, (totals.get(row.month) ?? 0) + czkAmounts[i]))
