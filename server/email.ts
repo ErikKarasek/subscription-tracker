@@ -23,9 +23,15 @@ export async function sendEmail(env: Env, subject: string, html: string): Promis
   if (!res.ok) console.error('[email] Resend request failed', res.status, await res.text().catch(() => ''))
 }
 
+// "October 5, 2026", not "10/5/2026": a numeric date also reads as 10 May (the mail digest
+// read it that way). Prague time: a YYYY-MM-DD parses as UTC midnight, still the same day there,
+// and a lastUsedAt timestamp shows the day it was in Prague, not in UTC.
+const day = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Prague' })
+
 export function renewalReminderEmail(subs: Subscription[]): { subject: string; html: string } {
   const rows = subs
-    .map((s) => `<li>${s.name} — ${s.amount} ${s.currency} · renews ${new Date(s.nextRenewalDate).toLocaleDateString('en-US')}</li>`)
+    .map((s) => `<li>${s.name} — ${s.amount} ${s.currency} · renews ${day(s.nextRenewalDate)}</li>`)
     .join('')
   return {
     subject: `Renewing soon: ${subs.map((s) => s.name).join(', ')}`,
@@ -35,7 +41,7 @@ export function renewalReminderEmail(subs: Subscription[]): { subject: string; h
 
 export function unusedDigestEmail(subs: Subscription[]): { subject: string; html: string } {
   const rows = subs
-    .map((s) => `<li>${s.name} — ${s.amount} ${s.currency}/${s.billingCycle}, last used ${s.lastUsedAt ? new Date(s.lastUsedAt).toLocaleDateString('en-US') : 'never'}</li>`)
+    .map((s) => `<li>${s.name} — ${s.amount} ${s.currency}/${s.billingCycle}, last used ${s.lastUsedAt ? day(s.lastUsedAt) : 'never'}</li>`)
     .join('')
   return {
     subject: `Weekly check: ${subs.length} subscription(s) going unused`,
