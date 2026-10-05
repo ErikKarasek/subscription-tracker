@@ -11,7 +11,17 @@ import { pragueDay } from './dates'
 //
 // Same chain and the same endpoint as job-tracker's server/ai/chat.ts, so one AI Studio key
 // serves both. Either way this only pre-fills the form — nothing is saved without Erik.
-const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']
+// Each model has its own free-tier quota (and the newest run out first — 20 requests a day on
+// 2026-10-05, shared with job-tracker, which uses the same key). The lite ones are last because
+// they are last to be exhausted: a check on a Czech receipt had all five reading the amount and
+// both dates correctly, so a lite model is still a far better fallback than llava.
+const GEMINI_MODELS = [
+  'gemini-3.8-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+]
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
 const GEMINI_TIMEOUT_MS = 25_000
 // The free tier turns requests away with 503 "high demand" a fair share of the time, and the next
