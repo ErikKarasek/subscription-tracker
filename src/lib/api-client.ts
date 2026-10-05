@@ -26,6 +26,6 @@ export const api = {
   spendHistory: (months = 12) => request<SpendHistoryPoint[]>(`/stats/history?months=${months}`),
   upcoming: (days = 7) => request<Subscription[]>(`/subscriptions/upcoming?days=${days}`),
   unused: (days = 30) => request<Subscription[]>(`/subscriptions/unused?days=${days}`),
-  extractFromImage: (imageBase64: string) =>
-    request<ExtractedSubscription>('/extract-subscription', { method: 'POST', body: JSON.stringify({ imageBase64 }) }),
+  extractFromImage: (imageBase64: string, mimeType: string) =>
+    request<ExtractedSubscription>('/extract-subscription', { method: 'POST', body: JSON.stringify({ imageBase64, mimeType }) }),
 }

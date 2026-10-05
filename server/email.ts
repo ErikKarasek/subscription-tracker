@@ -29,14 +29,28 @@ export async function sendEmail(env: Env, subject: string, html: string): Promis
 const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Prague' })
 
-export function renewalReminderEmail(subs: Subscription[]): { subject: string; html: string } {
-  const rows = subs
-    .map((s) => `<li>${s.name} — ${s.amount} ${s.currency} · renews ${day(s.nextRenewalDate)}</li>`)
-    .join('')
-  return {
-    subject: `Renewing soon: ${subs.map((s) => s.name).join(', ')}`,
-    html: `<p>These subscriptions renew in the next few days:</p><ul>${rows}</ul>`,
-  }
+/**
+ * One mail with two parts: what is being charged today, and what is coming in the next few days.
+ * Today leads the subject, because that is the line worth seeing on a phone's lock screen — the
+ * mail used to only ever say "renewing soon", and never that money had just gone out.
+ */
+export function renewalReminderEmail(dueToday: Subscription[], soon: Subscription[]): { subject: string; html: string } {
+  const list = (subs: Subscription[], withDate: boolean) =>
+    `<ul>${subs
+      .map((s) => `<li>${s.name} — ${s.amount} ${s.currency}${withDate ? ` · renews ${day(s.nextRenewalDate)}` : ''}</li>`)
+      .join('')}</ul>`
+
+  const parts: string[] = []
+  if (dueToday.length > 0) parts.push(`<p>Charged today:</p>${list(dueToday, false)}`)
+  if (soon.length > 0) parts.push(`<p>Renewing in the next few days:</p>${list(soon, true)}`)
+
+  const names = (subs: Subscription[]) => subs.map((s) => s.name).join(', ')
+  const subject =
+    dueToday.length > 0
+      ? `Charged today: ${names(dueToday)}${soon.length > 0 ? ` (and ${soon.length} renewing soon)` : ''}`
+      : `Renewing soon: ${names(soon)}`
+
+  return { subject, html: parts.join('') }
 }
 
 export function unusedDigestEmail(subs: Subscription[]): { subject: string; html: string } {

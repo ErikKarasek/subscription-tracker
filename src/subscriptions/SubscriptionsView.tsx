@@ -15,6 +15,8 @@ export function SubscriptionsView() {
   const [prefill, setPrefill] = useState<Partial<SubscriptionInput> | null>(null)
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
+  // Which model read the last screenshot: a wrong amount or date is worth knowing the source of.
+  const [importNote, setImportNote] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const visible = filter === 'all' ? subscriptions : subscriptions.filter((s) => s.category === filter)
@@ -25,21 +27,27 @@ export function SubscriptionsView() {
     if (!file) return
 
     setImportError(null)
+    setImportNote(null)
     setImporting(true)
     try {
       const dataUrl = await readAsDataUrl(file)
-      const [, base64] = /^data:[^;]+;base64,(.*)$/s.exec(dataUrl) ?? []
+      const [, mimeType, base64] = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl) ?? []
       if (!base64) throw new Error('Could not read that image')
 
-      const extracted: ExtractedSubscription = await api.extractFromImage(base64)
+      const extracted: ExtractedSubscription = await api.extractFromImage(base64, mimeType)
       setPrefill({
         name: extracted.name,
         category: extracted.category,
         amount: extracted.amount,
         currency: extracted.currency,
         billingCycle: extracted.billingCycle,
-        nextRenewalDate: extracted.chargeDate ? nextRenewalAfter(extracted.chargeDate, extracted.billingCycle) : undefined,
+        // A receipt that names the next billing date is better than stepping forward from the
+        // charge it shows, which assumes the cycle was read right too.
+        nextRenewalDate:
+          extracted.nextChargeDate ??
+          (extracted.chargeDate ? nextRenewalAfter(extracted.chargeDate, extracted.billingCycle) : undefined),
       })
+      setImportNote(`Read by ${extracted.via} — check the amount and the date before saving.`)
       setEditorTarget('new')
     } catch (err) {
       setImportError(err instanceof Error ? err.message : 'Could not read that screenshot — add it manually instead')
@@ -76,6 +84,7 @@ export function SubscriptionsView() {
       </div>
 
       {importError && <p role="alert" className="text-sm text-cat-streaming">{importError}</p>}
+      {importNote && <p className="text-sm text-mute">{importNote}</p>}
 
       <div className="flex flex-wrap gap-1.5">
         <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>

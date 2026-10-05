@@ -17,6 +17,7 @@ export interface Subscription {
   isActive: boolean
   lastUsedAt: string | null
   lastReminderSentFor: string | null
+  chargeNoticeSentFor: string | null
   createdAt: string
   updatedAt: string
 }
@@ -51,13 +52,20 @@ export interface ExtractedSubscription {
   currency: string
   billingCycle: BillingCycle
   category: Category
+  /** The charge on the receipt. */
   chargeDate: string | null
+  /** Only when the receipt names the next billing date itself; otherwise the form steps forward from chargeDate. */
+  nextChargeDate: string | null
+  /** Which model read the screenshot, shown with the pre-filled form so a bad read has a name. */
+  via: string
 }
 
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
   AI: Ai
+  /** Google AI Studio key; without it screenshot reading falls back to Workers AI. */
+  GEMINI_API_KEY?: string
   RESEND_API_KEY?: string
   REMINDER_TO_EMAIL?: string
 }

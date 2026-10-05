@@ -58,10 +58,10 @@ app.post('/api/subscriptions/:id/mark-used', async (c) => {
 })
 
 app.post('/api/extract-subscription', async (c) => {
-  const body = await c.req.json<{ imageBase64: string }>()
+  const body = await c.req.json<{ imageBase64: string; mimeType?: string }>()
   if (!body.imageBase64) return c.json({ error: 'imageBase64 is required' }, 400)
   try {
-    return c.json(await extractSubscriptionFromImage(c.env, body.imageBase64))
+    return c.json(await extractSubscriptionFromImage(c.env, body.imageBase64, body.mimeType))
   } catch (e) {
     return c.json({ error: e instanceof Error ? e.message : 'extraction failed' }, 502)
   }

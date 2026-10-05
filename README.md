@@ -31,6 +31,32 @@ wrangler secret put RESEND_API_KEY
 Also set `REMINDER_TO_EMAIL` in `wrangler.toml` to your own address (defaults
 to a placeholder).
 
+The daily run sends one mail with two parts: what is being charged *today*, and
+what renews in the next three days. Today's renewals are advanced only on the
+following day, so the day the money leaves is a day the app can still talk about
+— advancing first is what used to make a charge-day pass in silence.
+
+## Reading a screenshot
+
+"Import from screenshot" pre-fills the form from a receipt. It asks Gemini
+(`gemini-3.8-flash`, then two older ones) through Google's OpenAI-compatible
+endpoint, and falls back to Workers AI's small vision model when there is no key
+or the free tier is busy. Dates are where a receipt is most often misread, so the
+prompt spells out the Czech and US orders; whatever comes back only pre-fills the
+form, and nothing is saved without you.
+
+```
+wrangler secret put GEMINI_API_KEY     # a free key from Google AI Studio
+```
+
+## Migrations
+
+`npm run db:remote` applies `0001` only. Later ones are applied by hand:
+
+```
+wrangler d1 execute subscription-tracker-db --remote --file=./migrations/0003_charge_notice.sql
+```
+
 ## Deploy
 
 ```

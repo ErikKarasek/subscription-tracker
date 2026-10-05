@@ -4,7 +4,7 @@ import { api } from '../lib/api-client'
 import { StatTile } from './StatTile'
 import { CategoryBarChart } from './CategoryBarChart'
 import { SpendHistoryChart } from './SpendHistoryChart'
-import { daysSince, daysUntil, formatDate, formatMoney } from '../lib/format'
+import { daysSince, dueLabel, formatDate, formatMoney } from '../lib/format'
 
 export function OverviewDashboard() {
   const [summary, setSummary] = useState<StatsSummary | null>(null)
@@ -57,7 +57,7 @@ export function OverviewDashboard() {
               <li key={s.id} className="flex justify-between text-sm text-ink-2">
                 <span>{s.name}</span>
                 <span className="font-mono text-xs text-signal">
-                  {formatDate(s.nextRenewalDate)} · {daysUntil(s.nextRenewalDate)}d
+                  {formatDate(s.nextRenewalDate)} · {dueLabel(s.nextRenewalDate)}
                 </span>
               </li>
             ))}

@@ -1,6 +1,7 @@
 import type { BillingCycle, Category, StatsSummary, Subscription, SubscriptionInput } from './types'
 import { CATEGORIES } from './types'
 import { convertAllToCZK } from './fx'
+import { addCycle, addDays, dayOf, pragueDay } from './dates'
 
 interface SubscriptionRow {
   id: string
@@ -15,6 +16,7 @@ interface SubscriptionRow {
   is_active: number
   last_used_at: string | null
   last_reminder_sent_for: string | null
+  charge_notice_sent_for: string | null
   created_at: string
   updated_at: string
 }
@@ -33,6 +35,7 @@ function rowToSubscription(row: SubscriptionRow): Subscription {
     isActive: row.is_active === 1,
     lastUsedAt: row.last_used_at,
     lastReminderSentFor: row.last_reminder_sent_for,
+    chargeNoticeSentFor: row.charge_notice_sent_for,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -44,14 +47,6 @@ export function toMonthly(amount: number, cycle: BillingCycle): number {
   if (cycle === 'yearly') return amount / 12
   if (cycle === 'weekly') return (amount * 52) / 12
   return amount
-}
-
-function addCycle(iso: string, cycle: BillingCycle): string {
-  const d = new Date(iso)
-  if (cycle === 'yearly') d.setUTCFullYear(d.getUTCFullYear() + 1)
-  else if (cycle === 'weekly') d.setUTCDate(d.getUTCDate() + 7)
-  else d.setUTCMonth(d.getUTCMonth() + 1)
-  return d.toISOString()
 }
 
 export async function listSubscriptions(db: D1Database, filters: { category?: Category; active?: boolean } = {}): Promise<Subscription[]> {
@@ -179,16 +174,17 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
-export async function getUpcomingRenewals(db: D1Database, days: number): Promise<Subscription[]> {
-  const cutoff = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
-  const now = new Date().toISOString()
+// Today counts as upcoming. It used to not: a renewal stored at midnight is already in the past
+// by the time anything asks, so the one day the money actually leaves was the one day the
+// subscription was missing from both the dashboard and the reminder mail.
+export async function getUpcomingRenewals(db: D1Database, days: number, today = pragueDay()): Promise<Subscription[]> {
   const { results } = await db
     .prepare(
       `SELECT * FROM subscriptions
-       WHERE is_active = 1 AND next_renewal_date BETWEEN ? AND ?
+       WHERE is_active = 1 AND substr(next_renewal_date, 1, 10) BETWEEN ? AND ?
        ORDER BY next_renewal_date ASC`,
     )
-    .bind(now, cutoff)
+    .bind(today, addDays(today, days))
     .all<SubscriptionRow>()
   return results.map(rowToSubscription)
 }
@@ -210,20 +206,23 @@ export async function getUnusedSubscriptions(db: D1Database, days: number): Prom
   return results.map(rowToSubscription)
 }
 
-// Advances any subscription whose next_renewal_date has passed, one cycle at a time
-// (handles multiple missed cycles), logging a renewal_events row for each cycle crossed.
+// Advances any subscription whose renewal day has passed, one cycle at a time (handles multiple
+// missed cycles), logging a renewal_events row for each cycle crossed. Today is deliberately left
+// alone: a subscription stays on today's date all day, so the day-of mail in scheduled.ts has
+// something to report and the card still reads "today" when Erik opens the app. It is advanced on
+// the next run, a day later.
 // Returns the subscriptions that were advanced, for the scheduled worker to consider for reminders.
-export async function advanceDueRenewals(db: D1Database): Promise<Subscription[]> {
+export async function advanceDueRenewals(db: D1Database, today = pragueDay()): Promise<Subscription[]> {
   const now = new Date().toISOString()
   const { results } = await db
-    .prepare('SELECT * FROM subscriptions WHERE is_active = 1 AND next_renewal_date < ?')
-    .bind(now)
+    .prepare('SELECT * FROM subscriptions WHERE is_active = 1 AND substr(next_renewal_date, 1, 10) < ?')
+    .bind(today)
     .all<SubscriptionRow>()
 
   const advanced: Subscription[] = []
   for (const row of results) {
     let nextDate = row.next_renewal_date
-    while (nextDate < now) {
+    while (dayOf(nextDate) < today) {
       await db
         .prepare('INSERT INTO renewal_events (subscription_id, renewed_at, amount, currency) VALUES (?, ?, ?, ?)')
         .bind(row.id, nextDate, row.amount, row.currency)
@@ -231,7 +230,9 @@ export async function advanceDueRenewals(db: D1Database): Promise<Subscription[]
       nextDate = addCycle(nextDate, row.billing_cycle)
     }
     await db
-      .prepare('UPDATE subscriptions SET next_renewal_date = ?, last_reminder_sent_for = NULL, updated_at = ? WHERE id = ?')
+      .prepare(
+        'UPDATE subscriptions SET next_renewal_date = ?, last_reminder_sent_for = NULL, charge_notice_sent_for = NULL, updated_at = ? WHERE id = ?',
+      )
       .bind(nextDate, now, row.id)
       .run()
     advanced.push({ ...rowToSubscription(row), nextRenewalDate: nextDate })
@@ -241,6 +242,11 @@ export async function advanceDueRenewals(db: D1Database): Promise<Subscription[]
 
 export async function markReminderSent(db: D1Database, id: string, forDate: string): Promise<void> {
   await db.prepare('UPDATE subscriptions SET last_reminder_sent_for = ? WHERE id = ?').bind(forDate, id).run()
+}
+
+/** Kept apart from the reminder mark, so a reminder sent days earlier cannot silence the day-of mail. */
+export async function markChargeNoticeSent(db: D1Database, id: string, forDate: string): Promise<void> {
+  await db.prepare('UPDATE subscriptions SET charge_notice_sent_for = ? WHERE id = ?').bind(forDate, id).run()
 }
 
 // Actual money spent per month, from the renewal_events log — distinct from stats/summary's

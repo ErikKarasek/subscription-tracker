@@ -12,7 +12,8 @@ binding = "DB"
 database_name = "subscription-tracker-db"
 database_id = "fb541d14-ef20-40ad-bbf1-57ff7adad89e"
 
-# Free Workers AI (10,000 neurons/day), used for the screenshot-import feature.
+# Free Workers AI (10,000 neurons/day). The screenshot import asks Gemini first (GEMINI_API_KEY)
+# and only falls back to this small vision model; see server/extract.ts.
 [ai]
 binding = "AI"
 

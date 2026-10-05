@@ -1,5 +1,5 @@
 import type { Subscription } from '../types'
-import { CATEGORY_COLOR, CATEGORY_LABELS, daysSince, daysUntil, formatDate, formatMoney } from '../lib/format'
+import { CATEGORY_COLOR, CATEGORY_LABELS, daysSince, daysUntil, dueLabel, formatDate, formatMoney } from '../lib/format'
 
 export function SubscriptionCard({
   subscription,
@@ -12,8 +12,8 @@ export function SubscriptionCard({
   onMarkUsed: () => void
   onToggleActive: () => void
 }) {
-  const due = daysUntil(subscription.nextRenewalDate)
-  const dueSoon = subscription.isActive && due <= 3
+  const due = dueLabel(subscription.nextRenewalDate)
+  const dueSoon = subscription.isActive && daysUntil(subscription.nextRenewalDate) <= 3
 
   return (
     <div className={`flex flex-col gap-2 rounded-lg border border-line-soft bg-surface p-4 ${subscription.isActive ? '' : 'opacity-60'}`}>
@@ -36,7 +36,7 @@ export function SubscriptionCard({
 
       <div className="flex items-center justify-between text-xs">
         <span className={dueSoon ? 'font-medium text-signal' : 'text-ink-2'}>
-          {subscription.isActive ? `Renews ${formatDate(subscription.nextRenewalDate)} (${due >= 0 ? `${due}d` : 'due'})` : 'Not counted while paused'}
+          {subscription.isActive ? `Renews ${formatDate(subscription.nextRenewalDate)} (${due})` : 'Not counted while paused'}
         </span>
         <span className="text-mute">{subscription.billingCycle}</span>
       </div>
