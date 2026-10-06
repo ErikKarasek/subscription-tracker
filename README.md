@@ -51,13 +51,24 @@ wrangler secret put GEMINI_API_KEY     # a free key from Google AI Studio
 
 ## Migrations
 
-`npm run db:remote` applies `0001` only. Later ones are applied by hand:
+`npm run db:remote` applies `0001` only. Later ones are applied by hand, in order, and
+**before** the deploy that needs them:
 
 ```
+wrangler d1 execute subscription-tracker-db --remote --file=./migrations/0002_fx_cache.sql
 wrangler d1 execute subscription-tracker-db --remote --file=./migrations/0003_charge_notice.sql
 ```
 
+Each one runs once; `ALTER TABLE ... ADD COLUMN` fails if repeated, so skip any already applied.
+Deploying code first is not harmless: the daily cron reads and writes `charge_notice_sent_for`,
+so without `0003` it sends the renewal mail, then throws before advancing renewals or sending the
+Monday digest, and every later run sends the same mail again.
+
 ## Deploy
+
+1. Apply any new migration from the list above to the remote database.
+2. Check the column exists: `wrangler d1 execute subscription-tracker-db --remote --command "SELECT charge_notice_sent_for FROM subscriptions LIMIT 1"`
+3. Then:
 
 ```
 npm run deploy
